@@ -64,7 +64,7 @@ BookUsersDislike = {}
 
 def loadBookUsersRead():
     print "==== load read book users ===="
-    query_statement = """SELECT `ISBN`, `User-ID` FROM `bx-book-ratings` GROUP BY ISBN"""
+    query_statement = """SELECT `ISBN`, `User-ID` FROM `bx-book-ratings`"""
     x = conn.cursor()
     x.execute(query_statement)
     results = x.fetchall()
@@ -80,7 +80,7 @@ def loadBookUsersRead():
 
 def loadBookUsersLike():
     print "==== load like book users ===="
-    query_statement = """SELECT ISBN, `User-ID` FROM `bx-book-ratings` WHERE `Book-Rating` >= 8 GROUP BY ISBN"""
+    query_statement = """SELECT ISBN, `User-ID` FROM `bx-book-ratings` WHERE `Book-Rating` >= 8"""
     x = conn.cursor()
     x.execute(query_statement)
     results = x.fetchall()
@@ -96,7 +96,7 @@ def loadBookUsersLike():
 
 def loadBookUsersDislike():
     print "==== load dislike book users ===="
-    query_statement = """SELECT ISBN, `User-ID` FROM `bx-book-ratings` WHERE `Book-Rating` <= 3 GROUP BY ISBN"""
+    query_statement = """SELECT ISBN, `User-ID` FROM `bx-book-ratings` WHERE `Book-Rating` <= 3"""
     x = conn.cursor()
     x.execute(query_statement)
     results = x.fetchall()
@@ -118,12 +118,13 @@ def findUsersReadBook(book_isbn, user_category):
     'like', i.e., score >= 8
     'dislike', i.e., score <= 3
     """
-    if user_category == 'read':
+    if user_category == 'read' and book_isbn in BookUsersRead:
         return BookUsersRead[book_isbn]
-    if user_category == 'like':
+    if user_category == 'like' and book_isbn in BookUsersLike:
         return BookUsersLike[book_isbn]
-    if user_category == 'dislike':
+    if user_category == 'dislike' and book_isbn in BookUsersDislike:
         return BookUsersDislike[book_isbn]
+    return set()
 
 
 def saveBookAgeIndications(book_isbn, user_category):
@@ -131,7 +132,7 @@ def saveBookAgeIndications(book_isbn, user_category):
     save book-age indication probabilities into DB
     user category:
     'read'
-    'like', i.e., score >= 7
+    'like', i.e., score >= 8
     'dislike', i.e., score <= 3
     """
     users = findUsersReadBook(book_isbn, user_category)
@@ -140,17 +141,18 @@ def saveBookAgeIndications(book_isbn, user_category):
     for user in users:
         if user in User_age_group:
             total_user_num += 1
-            user_num_age_group[User_age_group[user] - 1] += 1
+            user_num_age_group[User_age_group[user] - 1] += 1.0
 
     user_prob_age_group = [0, 0, 0, 0, 0]
-    for i in range(5):
-        user_prob_age_group[i] = user_num_age_group[i] * 1.0 / total_user_num
+    if total_user_num > 0:
+        for i in range(5):
+            user_prob_age_group[i] = user_num_age_group[i] * 1.0 / total_user_num
 
     table_name = "`ly-book-age-{}`".format(user_category)
-    insert_statement = "INSERT INTO {} (ISBN, age1, age2, age3, age4, age5) VALUES (%s, %s, %s, %s, %s, %s)".format(
+    insert_statement = "INSERT INTO {} (ISBN, age1, age2, age3, age4, age5, user_count) VALUES (%s, %s, %s, %s, %s, %s, %s)".format(
         table_name)
     x = conn.cursor()
-    x.execute(insert_statement, (book_isbn,) + tuple(user_prob_age_group))
+    x.execute(insert_statement, (book_isbn,) + tuple(user_prob_age_group) + (total_user_num,))
 
 
 def saveBooksAgeIndications(books_isbn, user_category):
@@ -159,13 +161,12 @@ def saveBooksAgeIndications(books_isbn, user_category):
     for book_isbn in books_isbn:
         saveBookAgeIndications(book_isbn, user_category)
         i += 1
-        if i % 10 == 0:
+        if i % 1000 == 0:
             print i
-    x = conn.cursor()
     try:
-        x.commit()
+        conn.commit()
     except Exception:
-        x.rollback()
+        conn.rollback()
 
 
 def saveBooksReadAgeInd(books_isbn):
@@ -177,7 +178,6 @@ def saveBooksReadAgeInd(books_isbn):
 
 def saveBooksLikeInd(books_isbn):
     """
-    save book-age indications for a list of books considering users' 'like' actions (score >= 7)
     """
     saveBooksAgeIndications(books_isbn, 'like')
 

@@ -36,8 +36,12 @@ def loadUserAge():
     results = x.fetchall()
     for result in results:
         User_age_group[result[0]] = age2group(int(result[1]))
+
+    i = 0
     for k in User_age_group:
-        print k, User_age_group[k]
+        i += 1
+        if i % 1000 == 0:
+            print k, User_age_group[k]
 
 
 def age2group(age):
@@ -53,26 +57,73 @@ def age2group(age):
     return max(min(int((age - 1) / 10), 5), 1)
 
 
+BookUsersRead = {}
+BookUsersLike = {}
+BookUsersDislike = {}
+
+
+def loadBookUsersRead():
+    print "==== load read book users ===="
+    query_statement = """SELECT `ISBN`, `User-ID` FROM `bx-book-ratings` GROUP BY ISBN"""
+    x = conn.cursor()
+    x.execute(query_statement)
+    results = x.fetchall()
+
+    print "==== store read book users into dict ===="
+    for result in results:
+        isbn = result[0]
+        user_id = result[1]
+        if isbn not in BookUsersRead:
+            BookUsersRead[isbn] = set()
+        BookUsersRead[isbn].add(user_id)
+
+
+def loadBookUsersLike():
+    print "==== load like book users ===="
+    query_statement = """SELECT ISBN, `User-ID` FROM `bx-book-ratings` WHERE `Book-Rating` >= 8 GROUP BY ISBN"""
+    x = conn.cursor()
+    x.execute(query_statement)
+    results = x.fetchall()
+
+    print "==== store like book users into dict ===="
+    for result in results:
+        isbn = result[0]
+        user_id = result[1]
+        if isbn not in BookUsersLike:
+            BookUsersLike[isbn] = set()
+        BookUsersLike[isbn].add(user_id)
+
+
+def loadBookUsersDislike():
+    print "==== load dislike book users ===="
+    query_statement = """SELECT ISBN, `User-ID` FROM `bx-book-ratings` WHERE `Book-Rating` <= 3 GROUP BY ISBN"""
+    x = conn.cursor()
+    x.execute(query_statement)
+    results = x.fetchall()
+
+    print "==== store dislike book users into dict ===="
+    for result in results:
+        isbn = result[0]
+        user_id = result[1]
+        if isbn not in BookUsersDislike:
+            BookUsersDislike[isbn] = set()
+        BookUsersDislike[isbn].add(user_id)
+
+
 def findUsersReadBook(book_isbn, user_category):
     """
     find users who read a book.
     user category:
     'read'
-    'like', i.e., score >= 7
+    'like', i.e., score >= 8
     'dislike', i.e., score <= 3
     """
-    query_statement = """SELECT DISTINCT(`User-ID`) FROM `bx-book-ratings` WHERE ISNB = %s """
+    if user_category == 'read':
+        return BookUsersRead[book_isbn]
     if user_category == 'like':
-        query_statement += """AND `Book-Rating` >= 7"""
-    elif user_category == 'dislike':
-        query_statement += """AND `Book-Rating` <= 3"""
-    x = conn.cursor()
-    x.execute(query_statement, (book_isbn))
-    results = x.fetchall()
-    users = []
-    for result in results:
-        users.append(result[0])
-    return users
+        return BookUsersLike[book_isbn]
+    if user_category == 'dislike':
+        return BookUsersDislike[book_isbn]
 
 
 def saveBookAgeIndications(book_isbn, user_category):
@@ -103,8 +154,13 @@ def saveBookAgeIndications(book_isbn, user_category):
 
 
 def saveBooksAgeIndications(books_isbn, user_category):
+    print "=====", user_category, "====="
+    i = 0
     for book_isbn in books_isbn:
         saveBookAgeIndications(book_isbn, user_category)
+        i += 1
+        if i % 10 == 0:
+            print i
     x = conn.cursor()
     try:
         x.commit()
@@ -158,7 +214,7 @@ def saveBookReads():
         conn.rollback()
 
 
-def selectBooks(reader_num_threshold=20):
+def selectBooks(reader_num_threshold):
     """
     select the books whose reader number is larger than a threshold
     """
@@ -172,6 +228,15 @@ def selectBooks(reader_num_threshold=20):
     return books_isbn
 
 
-# saveBookReads()
-# selectBooks()
-loadUserAge()
+def loadAll():
+    loadUserAge()
+    loadBookUsersRead()
+    loadBookUsersLike()
+    loadBookUsersDislike()
+
+
+loadAll()
+books_isbn = selectBooks(reader_num_threshold=10)
+saveBooksReadAgeInd(books_isbn)
+saveBooksLikeInd(books_isbn)
+saveBooksDislikeInd(books_isbn)

@@ -2,3 +2,4 @@ training_data
 data
 .vscode
 predict_data
+__pycache__

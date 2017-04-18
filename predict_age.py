@@ -67,7 +67,5 @@ if __name__ == "__main__":
     learner_dt = tree.DecisionTreeClassifier()
     learner_gbc = ensemble.GradientBoostingClassifier(n_estimators=50)
     learner_ada = ensemble.AdaBoostClassifier(n_estimators=50)
-    # cross_validation_multi_learners((learner_lr, learner_svm, learner_rf, learner_dt, learner_gbc),
-                                    # ("lr", "svm", "rf", "dt", "gbc"), book_X, book_y)
-    cross_validation_multi_learners((learner_ada,),
-                                    ("ada",), book_X, book_y)
+    cross_validation_multi_learners((learner_lr, learner_svm, learner_rf, learner_dt, learner_gbc),
+                                    ("lr", "svm", "rf", "dt", "gbc"), book_X, book_y)

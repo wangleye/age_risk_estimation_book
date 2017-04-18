@@ -23,6 +23,9 @@ from sklearn import linear_model, metrics, ensemble, svm
 
 
 def load_training_data(file_name):
+    """
+    load training data from file_name
+    """
     training_y = []
     training_X = []
     with open(file_name) as trainingInput:
@@ -35,26 +38,33 @@ def load_training_data(file_name):
     return np.asarray(training_y), np.asarray(training_X)
 
 
-def cross_validation_sklearner(learner, X, Y, K=5):
-    print("X shape: {}".format(X.shape))
-    print("Y shape: {}".format(Y.shape))
+def cross_validation_sklearner(learner, learner_name, X, Y, K=5):
+    """
+    cross validation for one learner
+    """
     Y_1D = Y.reshape(-1)
-    Y_pred = cross_val_predict(learner, X, Y_1D, cv=K, verbose=1)
-    Y_pred = Y_pred.reshape(-1, 1)
-    print("Y_pred shape: {}".format(Y_pred.shape))
-    print("Prediction accuracy: {}".format(np.sqrt(metrics.accuracy_score(Y, Y_pred))))
+    Y_pred = cross_val_predict(learner, X, Y_1D, cv=K, verbose=1, method='predict_proba')
+    np.savetxt("predict_data/{}.txt".format(learner_name), Y_pred)
+
+    Y_pred_label = cross_val_predict(learner, X, Y_1D, cv=K, method='predict').reshape(-1, 1)
+    print("Prediction accuracy: {}".format(np.sqrt(metrics.accuracy_score(Y, Y_pred_label))))
 
 
-def cross_validation_multiple_learners(learners, X, Y, K=5):
-    for learner in learners:
-        print("======= {} =======".format(str(learner)))
-        cross_validation_sklearner(learner, X, Y. K)
+def cross_validation_multi_learners(learners, learner_names, X, Y, K=5):
+    """
+    cross validation for multiple learners
+    """
+    for idx, learner in enumerate(learners):
+        print("======= {} =======".format(str(learner_names[idx])))
+        cross_validation_sklearner(learner, learner_names[idx], X, Y, K)
 
 
 if __name__ == "__main__":
-    training_y, training_X = load_training_data("training_data/feature_avg_filtered.txt")
+    book_y, book_X = load_training_data("training_data/feature_avg_filtered.txt")
     learner_lr = linear_model.LogisticRegression()
-    learner_svm = svm.SVC()
+    learner_svm = svm.SVC(probability=True)
     learner_rf = ensemble.RandomForestClassifier(n_estimators=50)
     learner_sdg = linear_model.SGDClassifier()
-    cross_validation_multiple_learners((learner_lr, learner_svm, learner_rf, learner_sdg), training_X, training_y)
+    learner_gbc = ensemble.GradientBoostingClassifier(n_estimators=50)
+    cross_validation_multi_learners((learner_lr, learner_svm, learner_rf, learner_sdg, learner_gbc),
+                                    ("lr", "svm", "rf", "sdg", "gbc"), book_X, book_y)

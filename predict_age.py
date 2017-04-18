@@ -47,7 +47,7 @@ def cross_validation_sklearner(learner, learner_name, X, Y, K=5):
     np.savetxt("predict_data/{}.txt".format(learner_name), Y_pred)
 
     Y_pred_label = cross_val_predict(learner, X, Y_1D, cv=K, method='predict').reshape(-1, 1)
-    print("Prediction accuracy: {}".format(np.sqrt(metrics.accuracy_score(Y, Y_pred_label))))
+    print("Prediction accuracy: {}".format(metrics.accuracy_score(Y, Y_pred_label)))
 
 
 def cross_validation_multi_learners(learners, learner_names, X, Y, K=5):

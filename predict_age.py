@@ -19,7 +19,7 @@
 
 import numpy as np
 from sklearn.model_selection import cross_val_predict
-from sklearn import linear_model, metrics, ensemble, svm
+from sklearn import linear_model, metrics, ensemble, svm, tree
 
 
 def load_training_data(file_name):
@@ -64,7 +64,10 @@ if __name__ == "__main__":
     learner_lr = linear_model.LogisticRegression()
     learner_svm = svm.SVC(probability=True)
     learner_rf = ensemble.RandomForestClassifier(n_estimators=50)
-    learner_sdg = linear_model.SGDClassifier()
+    learner_dt = tree.DecisionTreeClassifier()
     learner_gbc = ensemble.GradientBoostingClassifier(n_estimators=50)
-    cross_validation_multi_learners((learner_lr, learner_svm, learner_rf, learner_sdg, learner_gbc),
-                                    ("lr", "svm", "rf", "sdg", "gbc"), book_X, book_y)
+    learner_ada = ensemble.AdaBoostClassifier(n_estimators=50)
+    # cross_validation_multi_learners((learner_lr, learner_svm, learner_rf, learner_dt, learner_gbc),
+                                    # ("lr", "svm", "rf", "dt", "gbc"), book_X, book_y)
+    cross_validation_multi_learners((learner_ada,),
+                                    ("ada",), book_X, book_y)

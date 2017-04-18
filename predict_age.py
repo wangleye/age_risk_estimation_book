@@ -48,12 +48,13 @@ def cross_validation_sklearner(learner, X, Y, K=5):
 def cross_validation_multiple_learners(learners, X, Y, K=5):
     for learner in learners:
         print("======= {} =======".format(str(learner)))
-        cross_validation_sklearner(learner, X, Y)
+        cross_validation_sklearner(learner, X, Y. K)
 
 
 if __name__ == "__main__":
     training_y, training_X = load_training_data("training_data/feature_avg_filtered.txt")
+    learner_lr = linear_model.LogisticRegression()
     learner_svm = svm.SVC()
     learner_rf = ensemble.RandomForestClassifier(n_estimators=50)
     learner_sdg = linear_model.SGDClassifier()
-    cross_validation_multiple_learners((learner_svm, learner_rf, learner_sdg), training_X, training_y)
+    cross_validation_multiple_learners((learner_lr, learner_svm, learner_rf, learner_sdg), training_X, training_y)

@@ -18,6 +18,7 @@
 """
 
 import pymysql
+import pandas as pd
 
 conn = pymysql.connect(host='127.0.0.1',
                        user='root',
@@ -35,13 +36,12 @@ def loadUserAge():
     x.execute(query_statement)
     results = x.fetchall()
     for result in results:
-        User_age_group[result[0]] = age2group(int(result[1]))
-
-    i = 0
-    for k in User_age_group:
-        i += 1
-        if i % 1000 == 0:
-            print k, User_age_group[k]
+        user_id = result[0]
+        age_group = age2group(int(result[1]))
+        User_age_group[user_id] = age_group
+        if result[0] not in User2Reads_binary:
+            User2Reads_binary[user_id] = {}
+            User2Reads_binary[user_id]['age_group'] = age_group
 
 
 def age2group(age):
@@ -65,15 +65,16 @@ User2Reads = {}
 User2Likes = {}
 User2Dislikes = {}
 
+User2Reads_binary = {}  # save dicts of user read dicts ([user_id, isbn]=1 if read) for PNAS baseline
 
 def loadBookUsersRead():
-    print "==== load read book users ===="
+    print("==== load read book users ====")
     query_statement = """SELECT `ISBN`, `User-ID` FROM `bx-book-ratings`"""
     x = conn.cursor()
     x.execute(query_statement)
     results = x.fetchall()
 
-    print "==== store read book users into dict ===="
+    print("==== store read book users into dict ====")
     for result in results:
         isbn = result[0]
         user_id = result[1]
@@ -87,13 +88,13 @@ def loadBookUsersRead():
 
 
 def loadBookUsersLike():
-    print "==== load like book users ===="
+    print("==== load like book users ====")
     query_statement = """SELECT ISBN, `User-ID` FROM `bx-book-ratings` WHERE `Book-Rating` >= 8"""
     x = conn.cursor()
     x.execute(query_statement)
     results = x.fetchall()
 
-    print "==== store like book users into dict ===="
+    print("==== store like book users into dict ====")
     for result in results:
         isbn = result[0]
         user_id = result[1]
@@ -107,13 +108,13 @@ def loadBookUsersLike():
 
 
 def loadBookUsersDislike():
-    print "==== load dislike book users ===="
+    print("==== load dislike book users ====")
     query_statement = """SELECT ISBN, `User-ID` FROM `bx-book-ratings` WHERE `Book-Rating` <= 3"""
     x = conn.cursor()
     x.execute(query_statement)
     results = x.fetchall()
 
-    print "==== store dislike book users into dict ===="
+    print("==== store dislike book users into dict ====")
     for result in results:
         isbn = result[0]
         user_id = result[1]
@@ -172,13 +173,13 @@ def saveBookAgeIndications(book_isbn, user_category):
 
 
 def saveBooksAgeIndications(books_isbn, user_category):
-    print "=====", user_category, "====="
+    print("=====", user_category, "=====")
     i = 0
     for book_isbn in books_isbn:
         saveBookAgeIndications(book_isbn, user_category)
         i += 1
         if i % 1000 == 0:
-            print i
+            print(i)
     try:
         conn.commit()
     except Exception:
@@ -283,7 +284,7 @@ def saveBookReads():
         saveBookCounts2db(book_isbn, book_count)
         i += 1
         if i % 100 == 0:
-            print i
+            print(i)
     try:
         conn.commit()
     except Exception:
@@ -330,6 +331,27 @@ def outputTrainingDatasets(aggregate_method, file_name):
             outputfile.write("{}\n".format(line))
 
 
+def outputPNAStrainingDatasets(file_name, book_isbns):
+    """
+    output the training data for PNAS'13 paper
+    """
+    print("==== load read book users ====")
+    for book_isbn in book_isbns:
+        query_statement = """SELECT `ISBN`, `User-ID` FROM `bx-book-ratings` WHERE `ISBN` = %s"""
+        x = conn.cursor()
+        x.execute(query_statement, (book_isbn, ))
+        results = x.fetchall()
+
+        for result in results:
+            isbn = result[0]
+            user_id = result[1]
+            if user_id in User2Reads_binary:
+                User2Reads_binary[user_id][isbn] = 1
+
+    df = pd.DataFrame.from_dict(User2Reads_binary, orient='index')
+    df.to_csv("training_data/{}".format(file_name))
+
+
 def loadAll():
     loadUserAge()
     loadBookUsersRead()
@@ -337,12 +359,19 @@ def loadAll():
     loadBookUsersDislike()
 
 
-loadAll()
-outputTrainingDatasets(aggregation_method_avg, 'feature_avg')
+if __name__=="__main__":
+    # output age indication feature
+    # loadAll()
+    # outputTrainingDatasets(aggregation_method_avg, 'feature_avg')
 
-
-# save to database
-# books_isbn = selectBooks(reader_num_threshold=10)
-# saveBooksReadAgeInd(books_isbn)
-# saveBooksLikeInd(books_isbn)
-# saveBooksDislikeInd(books_isbn)
+    # output person reading feature for PNAS'13 paper baseline
+    loadUserAge()
+    book_isbns = selectBooks(reader_num_threshold=50)
+    print("num of books: {}".format(len(book_isbns)))
+    outputPNAStrainingDatasets("PNAS_training_data.csv", book_isbns)
+    
+    # save to database
+    # books_isbn = selectBooks(reader_num_threshold=10)
+    # saveBooksReadAgeInd(books_isbn)
+    # saveBooksLikeInd(books_isbn)
+    # saveBooksDislikeInd(books_isbn)

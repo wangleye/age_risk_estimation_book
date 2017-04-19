@@ -67,12 +67,19 @@ def prediction_accuracy(y_pred_prob, book_X, book_y, learner):
     """
     prediction accuracy on differnet risk level users
     """
+    risk_labels = np.zeros((len(book_y), 1))
+
     l_masks = []
     l_masks.append(np.where(y_pred_prob <= 0.25)[0])
     l_masks.append(np.where((y_pred_prob > 0.25) & (y_pred_prob <= 0.5))[0])
     l_masks.append(np.where((y_pred_prob > 0.5) & (y_pred_prob <= 0.75))[0])
     l_masks.append(np.where((y_pred_prob > 0.75) & (y_pred_prob <= 0.9))[0])
     l_masks.append(np.where(y_pred_prob > 0.9)[0])
+
+    for i, mask in enumerate(l_masks):
+        risk_labels[mask] = i+1
+
+    np.savetxt("risk_labels.txt", risk_labels, fmt='%i')  # save as integer
 
     # prediction on estimated risk levels
     accuracy = np.zeros((5, ))
@@ -104,10 +111,5 @@ if __name__ == "__main__":
         y_prob_all[ln_idx] = risk_estimation(lname)
     y_prob_mean = np.mean(y_prob_all, axis=0)
 
-    print("======results on mean user risk======")
     for each_learner in learners:
         prediction_accuracy(y_prob_mean, train_book_X, train_book_y, each_learner)
-
-    print("======results on single user risk======")
-    for i in range(5):
-        prediction_accuracy(y_prob_all[i], train_book_X, train_book_y, learners[i])

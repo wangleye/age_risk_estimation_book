@@ -18,9 +18,10 @@
 """
 
 import numpy as np
-from sklearn import linear_model, svm, ensemble
-from sklearn.model_selection import cross_val_predict
-from predict_age import load_training_data, metrics
+from sklearn import linear_model, svm, ensemble, metrics
+from sklearn.model_selection import KFold
+from sklearn.calibration import CalibratedClassifierCV
+from predict_age import load_training_data
 
 
 def load_predict_data(learner_name):
@@ -36,12 +37,30 @@ def load_predict_data(learner_name):
 def risk_estimation(learner_name):
     """
     estimate risk first and then predict accuracy on the estimated risk level
+    the risk learner is selected by the brier score loss
     """
-    lr = linear_model.LogisticRegression()
+    risk_learners = [  # candidate risk learners
+        linear_model.LogisticRegression(),
+        ensemble.RandomForestClassifier(n_estimators=10),
+        ensemble.AdaBoostClassifier(n_estimators=10),
+        ensemble.GradientBoostingClassifier(n_estimators=10)]
     risk_X, risk_y = load_predict_data(learner_name)
-    y_pred_prob = cross_val_predict(lr, risk_X, risk_y, cv=5, method='predict_proba')[:, 1]
 
-    return y_pred_prob
+    best_brier_score_loss = 100
+    best_y_pred_cali_prob = None
+    for risk_learner in risk_learners:
+        cali_learner = CalibratedClassifierCV(risk_learner, cv=3, method='isotonic')
+        k_fold = KFold(3)
+        y_pred_cali_prob = np.zeros((len(risk_y), ))
+        for (train, test) in k_fold.split(risk_X, risk_y):
+            cali_learner.fit(risk_X[train], risk_y[train])
+            y_pred_cali_prob[test] = cali_learner.predict_proba(risk_X[test])[:, 1]
+        current_brier_score_loss = metrics.brier_score_loss(risk_y, y_pred_cali_prob)
+        if current_brier_score_loss < best_brier_score_loss:
+            best_brier_score_loss = current_brier_score_loss
+            best_y_pred_cali_prob = y_pred_cali_prob
+
+    return best_y_pred_cali_prob
 
 
 def prediction_accuracy(y_pred_prob, book_X, book_y, learner):
@@ -74,9 +93,9 @@ if __name__ == "__main__":
     train_book_y, train_book_X = load_training_data("training_data/feature_avg_filtered.txt")
     learner_lr = linear_model.LogisticRegression()
     learner_svm = svm.SVC(probability=True)
-    learner_rf = ensemble.RandomForestClassifier(n_estimators=50)
-    learner_gbc = ensemble.GradientBoostingClassifier(n_estimators=50)
-    learner_ada = ensemble.AdaBoostClassifier(n_estimators=50)
+    learner_rf = ensemble.RandomForestClassifier(n_estimators=10)
+    learner_gbc = ensemble.GradientBoostingClassifier(n_estimators=10)
+    learner_ada = ensemble.AdaBoostClassifier(n_estimators=10)
     learners = [learner_lr, learner_rf, learner_gbc, learner_ada, learner_svm]
     learner_names = ['lr', 'rf', 'gbc', 'ada', 'svm']
 

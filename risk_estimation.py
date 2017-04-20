@@ -34,7 +34,17 @@ def load_predict_data(learner_name):
     return X, y
 
 
-def risk_estimation(learner_name):
+def load_noise_data(learner_name, noise_ratio):
+    """
+    load noise data
+    """
+    risk_data = np.loadtxt("predict_data/noise/{}_noise_{}.txt".format(learner_name, noise_ratio))
+    y = (risk_data[:, -1] == risk_data[:, -2])
+    X = risk_data[:, 0:-2]
+    return X, y
+
+
+def risk_estimation(risk_X, risk_y):
     """
     estimate risk first and then predict accuracy on the estimated risk level
     the risk learner is selected by the brier score loss
@@ -44,7 +54,6 @@ def risk_estimation(learner_name):
         ensemble.RandomForestClassifier(n_estimators=10),
         ensemble.AdaBoostClassifier(n_estimators=10),
         ensemble.GradientBoostingClassifier(n_estimators=10)]
-    risk_X, risk_y = load_predict_data(learner_name)
 
     best_brier_score_loss = 100
     best_y_pred_cali_prob = None
@@ -96,20 +105,52 @@ def prediction_accuracy(y_pred_prob, book_X, book_y, learner):
     return accuracy
 
 
-if __name__ == "__main__":
+def evaluate_accuracy_on_each_risk_level():
+    """
+    Run the experiment to evluate the acutal prediction accuracy on each risk level of users
+    """
     train_book_y, train_book_X = load_training_data("training_data/feature_avg_filtered.txt")
-    learner_lr = linear_model.LogisticRegression()
-    learner_svm = svm.SVC(probability=True)
-    learner_rf = ensemble.RandomForestClassifier(n_estimators=10)
-    learner_gbc = ensemble.GradientBoostingClassifier(n_estimators=10)
-    learner_ada = ensemble.AdaBoostClassifier(n_estimators=10)
-    learners = [learner_lr, learner_rf, learner_gbc, learner_ada, learner_svm]
+    learners = [
+        linear_model.LogisticRegression(),
+        ensemble.RandomForestClassifier(n_estimators=10),
+        ensemble.GradientBoostingClassifier(n_estimators=10),
+        ensemble.AdaBoostClassifier(n_estimators=10),
+        svm.SVC(probability=True)]
     learner_names = ['lr', 'rf', 'gbc', 'ada', 'svm']
 
     y_prob_all = np.zeros((len(learner_names), len(train_book_y)))
     for ln_idx, lname in enumerate(learner_names):
-        y_prob_all[ln_idx] = risk_estimation(lname)
+        bx_risk_X, bx_risk_y = load_predict_data(lname)
+        y_prob_all[ln_idx] = risk_estimation(bx_risk_X, bx_risk_y)
     y_prob_mean = np.mean(y_prob_all, axis=0)
 
     for each_learner in learners:
         prediction_accuracy(y_prob_mean, train_book_X, train_book_y, each_learner)
+
+
+def evaluate_accuracy_on_each_risk_level_noise(noise_ratio):
+    """
+    Run the expierment to evaluate the actual prediction accuracy on each risk level of users
+    based on the noisy dataset
+    """
+    train_book_y, train_book_X = load_training_data("training_data/feature_avg_filtered.txt")
+    learners = [
+        linear_model.LogisticRegression(),
+        ensemble.RandomForestClassifier(n_estimators=10),
+        ensemble.GradientBoostingClassifier(n_estimators=10),
+        ensemble.AdaBoostClassifier(n_estimators=10),
+        svm.SVC(probability=True)]
+    learner_names = ['lr', 'rf', 'gbc', 'ada', 'svm']
+
+    y_prob_all = np.zeros((len(learner_names), len(train_book_y)))
+    for ln_idx, lname in enumerate(learner_names):
+        noisy_risk_X, noisy_risk_y = load_noise_data(lname, noise_ratio)
+        y_prob_all[ln_idx] = risk_estimation(noisy_risk_X, noisy_risk_y)
+    y_prob_mean = np.mean(y_prob_all, axis=0)
+
+    for each_learner in learners:
+        prediction_accuracy(y_prob_mean, train_book_X, train_book_y, each_learner)
+
+
+if __name__ == '__main__':
+    evaluate_accuracy_on_each_risk_level_noise(noise_ratio=10)

@@ -22,6 +22,7 @@ from sklearn import linear_model, svm, ensemble, metrics
 from sklearn.model_selection import KFold
 from sklearn.calibration import CalibratedClassifierCV
 from predict_age import load_training_data
+import pandas as pd
 
 
 def load_predict_data(learner_name):
@@ -46,28 +47,38 @@ def load_noise_data(learner_name, noise_ratio):
 
 def risk_estimation(risk_X, risk_y):
     """
-    estimate risk first and then predict accuracy on the estimated risk level
-    the risk learner is selected by the brier score loss
+    estimate risk
+    the risk learner is selected by the brier score loss / f1 score
     """
     risk_learners = [  # candidate risk learners
         linear_model.LogisticRegression(),
         ensemble.RandomForestClassifier(n_estimators=10),
-        ensemble.AdaBoostClassifier(n_estimators=10),
-        ensemble.GradientBoostingClassifier(n_estimators=10)]
+        #ensemble.AdaBoostClassifier(n_estimators=10),
+        #ensemble.GradientBoostingClassifier(n_estimators=10)]
+        svm.SVC(),
+        svm.LinearSVC()]
+    
+    risk_learner_names = ['lr', 'rf', 'svc', 'linear_svc']
 
-    best_brier_score_loss = 100
+    #best_brier_score_loss = 100
     best_y_pred_cali_prob = None
-    for risk_learner in risk_learners:
+    best_f1_score = 0
+    for i, risk_learner in enumerate(risk_learners):
         cali_learner = CalibratedClassifierCV(risk_learner, cv=3, method='isotonic')
         k_fold = KFold(3)
         y_pred_cali_prob = np.zeros((len(risk_y), ))
         for (train, test) in k_fold.split(risk_X, risk_y):
             cali_learner.fit(risk_X[train], risk_y[train])
             y_pred_cali_prob[test] = cali_learner.predict_proba(risk_X[test])[:, 1]
-        current_brier_score_loss = metrics.brier_score_loss(risk_y, y_pred_cali_prob)
-        if current_brier_score_loss < best_brier_score_loss:
-            best_brier_score_loss = current_brier_score_loss
+        current_f1_score = metrics.f1_score(risk_y, (y_pred_cali_prob>0.5).astype(int))
+        print(risk_learner_names[i], "f1_score", current_f1_score)
+        if current_f1_score > best_f1_score:
+            current_f1_score = best_f1_score
             best_y_pred_cali_prob = y_pred_cali_prob
+        #current_brier_score_loss = metrics.brier_score_loss(risk_y, y_pred_cali_prob)
+        #if current_brier_score_loss < best_brier_score_loss:
+            #best_brier_score_loss = current_brier_score_loss
+            #best_y_pred_cali_prob = y_pred_cali_prob
 
     return best_y_pred_cali_prob
 
@@ -153,4 +164,13 @@ def evaluate_accuracy_on_each_risk_level_noise(noise_ratio):
 
 
 if __name__ == '__main__':
-    evaluate_accuracy_on_each_risk_level_noise(noise_ratio=10)
+    # evaluate_accuracy_on_each_risk_level_noise(noise_ratio=10)
+    learners = ['ada','svm','gbc','lr','rf']
+    df = pd.DataFrame()
+    for learner in learners:
+        print("======", learner, "=======")
+        X, y = load_predict_data(learner)
+        df[leaner+'_risk'] = risk_estimation(X, y)
+    print(df.sample(5))
+
+    df.to_pickle('./predict_data/risk_estimation_results.pkl')

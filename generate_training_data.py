@@ -331,6 +331,30 @@ def outputTrainingDatasets(aggregate_method, file_name):
             outputfile.write("{}\n".format(line))
 
 
+def outputPNAStrainingDatasets(file_name, book_isbns):
+    """
+    output the training data for PNAS'13 paper
+    """
+    print("==== load read book users ====")
+    for idx, book_isbn in enumerate(book_isbns):
+        print("load book {}...".format(idx), end='\r')
+        query_statement = """SELECT `ISBN`, `User-ID` FROM `bx-book-ratings` WHERE `ISBN` = %s"""
+        x = conn.cursor()
+        x.execute(query_statement, (book_isbn, ))
+        results = x.fetchall()
+
+        for result in results:
+            isbn = result[0]
+            user_id = result[1]
+            if user_id in User2Reads_binary:
+                User2Reads_binary[user_id][isbn] = 1
+    
+    print("\nload to pandas dataframe...")
+    df = pd.DataFrame.from_dict(User2Reads_binary, orient='index')
+    print("save to CSV...")
+    df.to_pickle("training_data/{}".format(file_name))
+
+
 def loadAll():
     loadUserAge()
     loadBookUsersRead()
@@ -342,9 +366,15 @@ if __name__=="__main__":
     # output age indication feature
     # loadAll()
     # outputTrainingDatasets(aggregation_method_avg, 'feature_avg')
+
+    # output person reading feature for PNAS'13 paper baseline
+    loadUserAge()
+    book_isbns = selectBooks(reader_num_threshold=50)
+    print("num of books: {}".format(len(book_isbns)))
+    outputPNAStrainingDatasets("PNAS_training_data.pkl", book_isbns)
     
     # save to database
-    books_isbn = selectBooks(reader_num_threshold=10)
-    saveBooksReadAgeInd(books_isbn)
-    saveBooksLikeInd(books_isbn)
-    saveBooksDislikeInd(books_isbn)
+    # books_isbn = selectBooks(reader_num_threshold=10)
+    # saveBooksReadAgeInd(books_isbn)
+    # saveBooksLikeInd(books_isbn)
+    # saveBooksDislikeInd(books_isbn)

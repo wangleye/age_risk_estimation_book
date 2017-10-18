@@ -58,7 +58,7 @@ def risk_estimation(risk_X, risk_y):
         svm.SVC(),
         svm.LinearSVC()]
     
-    risk_learner_names = ['lr', 'rf', 'svc', 'linear_svc']
+    risk_learner_names = ['lr', 'rf', 'kde_SVC', 'linear_svc']
 
     #best_brier_score_loss = 100
     best_y_pred_cali_prob = None
@@ -170,7 +170,7 @@ if __name__ == '__main__':
     for learner in learners:
         print("======", learner, "=======")
         X, y = load_predict_data(learner)
-        df[leaner+'_risk'] = risk_estimation(X, y)
+        df[learner+'_risk'] = risk_estimation(X, y)
     print(df.sample(5))
 
     df.to_pickle('./predict_data/risk_estimation_results.pkl')

@@ -17,10 +17,20 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
+import pandas as pd
 import numpy as np
 from sklearn.model_selection import cross_val_predict
 from sklearn import linear_model, metrics, ensemble, svm, tree
 
+def load_training_data_pnas(file_name):
+    """
+    load training data from file_name
+    """
+    user_df = pd.read_pickle(file_name)
+    training_y = user_df['age_group']
+    training_X = user_df['100features']
+    X_array = np.asarray(training_X.values.flatten())
+    return np.array(training_y.values), np.array(X_array.tolist())
 
 def load_training_data(file_name):
     """
@@ -60,12 +70,22 @@ def cross_validation_multi_learners(learners, learner_names, X, Y, K=5):
 
 
 if __name__ == "__main__":
-    book_y, book_X = load_training_data("training_data/feature_avg_filtered.txt")
+
+    # ==== Bayesian methods =====
+    # book_y, book_X = load_training_data("training_data/feature_avg_filtered.txt")
+    # learner_lr = linear_model.LogisticRegression()
+    # learner_svm = svm.SVC(probability=True)
+    # learner_rf = ensemble.RandomForestClassifier(n_estimators=50)
+    # learner_dt = tree.DecisionTreeClassifier()
+    # learner_gbc = ensemble.GradientBoostingClassifier(n_estimators=50)
+    # learner_ada = ensemble.AdaBoostClassifier(n_estimators=50)
+    # cross_validation_multi_learners((learner_lr, learner_svm, learner_rf, learner_dt, learner_gbc),
+    #                                 ("lr", "svm", "rf", "dt", "gbc"), book_X, book_y)
+
+    # ==== PNAS SVD decompostition ====
+    book_y_pnas, book_X_pnas = load_training_data_pnas("training_data/PNAS_training_data.pkl")
+    print(book_y_pnas.shape)
+    print(book_X_pnas.shape)
     learner_lr = linear_model.LogisticRegression()
-    learner_svm = svm.SVC(probability=True)
-    learner_rf = ensemble.RandomForestClassifier(n_estimators=50)
-    learner_dt = tree.DecisionTreeClassifier()
-    learner_gbc = ensemble.GradientBoostingClassifier(n_estimators=50)
-    learner_ada = ensemble.AdaBoostClassifier(n_estimators=50)
-    cross_validation_multi_learners((learner_lr, learner_svm, learner_rf, learner_dt, learner_gbc),
-                                    ("lr", "svm", "rf", "dt", "gbc"), book_X, book_y)
+    cross_validation_multi_learners((learner_lr,), ('lr-svd',), book_X_pnas, book_y_pnas)
+

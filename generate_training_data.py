@@ -19,6 +19,7 @@
 
 import pymysql
 import pandas as pd
+from sklearn.decomposition import TruncatedSVD
 
 conn = pymysql.connect(host='127.0.0.1',
                        user='root',
@@ -336,23 +337,47 @@ def outputPNAStrainingDatasets(file_name, book_isbns):
     output the training data for PNAS'13 paper
     """
     print("==== load read book users ====")
-    for idx, book_isbn in enumerate(book_isbns):
-        print("load book {}...".format(idx), end='\r')
-        query_statement = """SELECT `ISBN`, `User-ID` FROM `bx-book-ratings` WHERE `ISBN` = %s"""
-        x = conn.cursor()
-        x.execute(query_statement, (book_isbn, ))
-        results = x.fetchall()
+    query_statement = 'SELECT `ISBN`, `User-ID` FROM `bx-book-ratings` WHERE `ISBN` in (%s)'
+    in_p=', '.join(list(map(lambda x: '%s', book_isbns)))
+    query_statement = query_statement % in_p
+    print(query_statement)
+    x = conn.cursor()
+    x.execute(query_statement, book_isbns)
+    results = x.fetchall()
+    user_set = set()
+    for result in results:
+        isbn = result[0]
+        user_id = result[1]
+        user_set.add(user_id)
+        if user_id in User2Reads_binary:
+            User2Reads_binary[user_id][isbn] = 1
 
-        for result in results:
-            isbn = result[0]
-            user_id = result[1]
-            if user_id in User2Reads_binary:
-                User2Reads_binary[user_id][isbn] = 1
-    
+    key_set =  set(User2Reads_binary.keys())
+    for key in key_set:
+        if key not in user_set:
+            del User2Reads_binary[key]
+    print(len(User2Reads_binary))
+
     print("\nload to pandas dataframe...")
     df = pd.DataFrame.from_dict(User2Reads_binary, orient='index')
-    print("save to CSV...")
-    df.to_pickle("training_data/{}".format(file_name))
+    df = df.fillna(value=0)
+    print(df.head())
+    df_read = df.drop('age_group', 1)
+    df_read = df_read[(df_read.T != 0).any()]
+    print('len_df_read', len(df_read))
+
+    svd = TruncatedSVD(n_components=100)
+    sample_100features = svd.fit_transform(df_read)
+    print ('svd', sample_100features)
+
+    new_df = pd.DataFrame()
+    new_df['age_group'] = df.loc[df_read.index, 'age_group'].copy()
+    print(len(new_df))
+    new_df['100features'] = sample_100features.tolist()
+    # print(new_df['100features'])
+    print(new_df.loc[10,'100features'])
+    print("save to pickle...")
+    new_df.to_pickle("training_data/{}".format(file_name))
 
 
 def loadAll():
@@ -369,7 +394,7 @@ if __name__=="__main__":
 
     # output person reading feature for PNAS'13 paper baseline
     loadUserAge()
-    book_isbns = selectBooks(reader_num_threshold=50)
+    book_isbns = selectBooks(reader_num_threshold=30)
     print("num of books: {}".format(len(book_isbns)))
     outputPNAStrainingDatasets("PNAS_training_data.pkl", book_isbns)
     

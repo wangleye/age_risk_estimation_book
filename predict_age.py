@@ -21,6 +21,7 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import cross_val_predict
 from sklearn import linear_model, metrics, ensemble, svm, tree
+from sklearn.neighbors import KNeighborsClassifier
 
 def load_training_data_pnas(file_name):
     """
@@ -72,7 +73,9 @@ def cross_validation_multi_learners(learners, learner_names, X, Y, K=5):
 if __name__ == "__main__":
 
     # ==== Bayesian methods =====
-    # book_y, book_X = load_training_data("training_data/feature_avg_filtered.txt")
+    book_y, book_X = load_training_data("training_data/feature_avg_filtered.txt")
+    learner_knn = KNeighborsClassifier(50)
+    cross_validation_sklearner(learner_knn, 'knn', book_X, book_y)
     # learner_lr = linear_model.LogisticRegression()
     # learner_svm = svm.SVC(probability=True)
     # learner_rf = ensemble.RandomForestClassifier(n_estimators=50)
@@ -83,9 +86,9 @@ if __name__ == "__main__":
     #                                 ("lr", "svm", "rf", "dt", "gbc"), book_X, book_y)
 
     # ==== PNAS SVD decompostition ====
-    book_y_pnas, book_X_pnas = load_training_data_pnas("training_data/PNAS_training_data.pkl")
-    print(book_y_pnas.shape)
-    print(book_X_pnas.shape)
-    learner_lr = linear_model.LogisticRegression()
-    cross_validation_multi_learners((learner_lr,), ('lr-svd',), book_X_pnas, book_y_pnas)
+    # book_y_pnas, book_X_pnas = load_training_data_pnas("training_data/PNAS_training_data.pkl")
+    # print(book_y_pnas.shape)
+    # print(book_X_pnas.shape)
+    # learner_rf = ensemble.RandomForestClassifier(n_estimators=50)
+    # cross_validation_multi_learners((learner_rf,), ('rf-svd',), book_X_pnas, book_y_pnas)
 

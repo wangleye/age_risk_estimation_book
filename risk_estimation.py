@@ -52,22 +52,33 @@ def risk_estimation(risk_X, risk_y):
     risk_learners = [  # candidate risk learners
         linear_model.LogisticRegression(),
         ensemble.RandomForestClassifier(n_estimators=10),
-        ensemble.AdaBoostClassifier(n_estimators=10),
-        ensemble.GradientBoostingClassifier(n_estimators=10)]
+        svm.SVC(probability=True, kernel='linear')
+        #ensemble.AdaBoostClassifier(n_estimators=10),
+        #ensemble.GradientBoostingClassifier(n_estimators=10)
+        ]
 
-    best_brier_score_loss = 100
+    #best_brier_score_loss = 100
+    best_f1_score = 0
     best_y_pred_cali_prob = None
     for risk_learner in risk_learners:
         cali_learner = CalibratedClassifierCV(risk_learner, cv=3, method='isotonic')
         k_fold = KFold(3)
         y_pred_cali_prob = np.zeros((len(risk_y), ))
+        y_pred = np.zeros((len(risk_y), ))
         for (train, test) in k_fold.split(risk_X, risk_y):
             cali_learner.fit(risk_X[train], risk_y[train])
             y_pred_cali_prob[test] = cali_learner.predict_proba(risk_X[test])[:, 1]
-        current_brier_score_loss = metrics.brier_score_loss(risk_y, y_pred_cali_prob)
-        if current_brier_score_loss < best_brier_score_loss:
-            best_brier_score_loss = current_brier_score_loss
+            y_pred[test] = cali_learner.predict(risk_X[test])
+        #current_brier_score_loss = metrics.brier_score_loss(risk_y, y_pred_cali_prob)
+        current_f1_score = metrics.f1_score(risk_y, y_pred)
+        print(risk_learner.__class__.__name__, ":", current_f1_score)
+        if current_f1_score > best_f1_score:
+            best_f1_score = current_f1_score
             best_y_pred_cali_prob = y_pred_cali_prob
+
+        #if current_brier_score_loss < best_brier_score_loss:
+        #    best_brier_score_loss = current_brier_score_loss
+        #    best_y_pred_cali_prob = y_pred_cali_prob
 
     return best_y_pred_cali_prob
 
@@ -153,4 +164,9 @@ def evaluate_accuracy_on_each_risk_level_noise(noise_ratio):
 
 
 if __name__ == '__main__':
-    evaluate_accuracy_on_each_risk_level_noise(noise_ratio=10)
+    # evaluate_accuracy_on_each_risk_level_noise(noise_ratio=10)
+    prediction_learners = ['lr', 'rf', 'svm', 'dt', 'gbc']
+    for prediction_learner in prediction_learners:
+        print("======", prediction_learner, "======")
+        X, y = load_predict_data(prediction_learner)
+        risk_estimation(X, y) 

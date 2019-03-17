@@ -62,7 +62,7 @@ def cross_validation_multi_learners(learners, learner_names, X, Y, K=5):
 if __name__ == "__main__":
     book_y, book_X = load_training_data("training_data/feature_avg_filtered.txt")
     learner_lr = linear_model.LogisticRegression()
-    learner_svm = svm.SVC(probability=True)
+    learner_svm = svm.SVC(probability=True, kernel='linear')
     learner_rf = ensemble.RandomForestClassifier(n_estimators=50)
     learner_dt = tree.DecisionTreeClassifier()
     learner_gbc = ensemble.GradientBoostingClassifier(n_estimators=50)

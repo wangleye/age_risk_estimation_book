@@ -340,11 +340,12 @@ def loadAll():
 
 if __name__=="__main__":
     # output age indication feature
-    # loadAll()
-    # outputTrainingDatasets(aggregation_method_avg, 'feature_avg')
+    loadAll()
     
     # save to database
     books_isbn = selectBooks(reader_num_threshold=10)
     saveBooksReadAgeInd(books_isbn)
     saveBooksLikeInd(books_isbn)
     saveBooksDislikeInd(books_isbn)
+
+    outputTrainingDatasets(aggregation_method_avg, 'feature_avg')

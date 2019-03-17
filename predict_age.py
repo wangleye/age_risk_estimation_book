@@ -20,8 +20,10 @@
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import cross_val_predict
-from sklearn import linear_model, metrics, ensemble, svm, tree
+from sklearn import linear_model, metrics, ensemble, svm, tree, naive_bayes
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn import preprocessing
+
 
 def load_training_data_pnas(file_name):
     """
@@ -32,6 +34,22 @@ def load_training_data_pnas(file_name):
     training_X = user_df['100features']
     X_array = np.asarray(training_X.values.flatten())
     return np.array(training_y.values), np.array(X_array.tolist())
+
+
+def load_training_data_categorical(file_name):
+    """
+    load training data from file_name for categorical book variables
+    """
+    user_df = pd.read_pickle(file_name)
+    print(user_df.head())
+    training_y = user_df['age_group']
+    x_varible_names = list(set(list(user_df)) - set(['age_group',]))
+    training_x = user_df[x_varible_names]
+    enc = preprocessing.OneHotEncoder()
+    enc.fit(training_x)
+    onehot_training_x = enc.transform(training_x).toarray()
+    return np.asarray(training_y), np.asarray(onehot_training_x)
+
 
 def load_training_data(file_name):
     """
@@ -73,9 +91,9 @@ def cross_validation_multi_learners(learners, learner_names, X, Y, K=5):
 if __name__ == "__main__":
 
     # ==== Bayesian methods =====
-    book_y, book_X = load_training_data("training_data/feature_avg_filtered.txt")
-    learner_knn = KNeighborsClassifier(50)
-    cross_validation_sklearner(learner_knn, 'knn', book_X, book_y)
+    # book_y, book_X = load_training_data("training_data/feature_avg_filtered.txt")
+    # learner_knn = KNeighborsClassifier(50)
+    # cross_validation_sklearner(learner_knn, 'knn', book_X, book_y)
     # learner_lr = linear_model.LogisticRegression()
     # learner_svm = svm.SVC(probability=True)
     # learner_rf = ensemble.RandomForestClassifier(n_estimators=50)
@@ -91,4 +109,14 @@ if __name__ == "__main__":
     # print(book_X_pnas.shape)
     # learner_rf = ensemble.RandomForestClassifier(n_estimators=50)
     # cross_validation_multi_learners((learner_rf,), ('rf-svd',), book_X_pnas, book_y_pnas)
+
+    # ==== CAT baseline ======
+    threshold = 10
+    print ('test CAT baselines (books with {}+ readers)'.format(threshold))
+    book_y_cat, book_X_cat = load_training_data_categorical("training_data/cat_training_data_{}+.pkl".format(threshold))
+    print(book_y_cat.shape)
+    print(book_X_cat.shape)
+    learner_nb = naive_bayes.BernoulliNB()
+    learner_dt = tree.DecisionTreeClassifier()
+    cross_validation_multi_learners((learner_nb, learner_dt), ('cat-nb', 'cat-dt'), book_X_cat, book_y_cat)
 

@@ -23,7 +23,7 @@ from sklearn.decomposition import TruncatedSVD
 
 conn = pymysql.connect(host='127.0.0.1',
                        user='root',
-                       passwd='123456',
+                       passwd='mysql1234567890',
                        db='book_crossing')
 User_age_group = {}  # store the users' age groups, use loadUserAge() function to initialize
 
@@ -356,7 +356,7 @@ def outputPNAStrainingDatasets(file_name, book_isbns):
     for key in key_set:
         if key not in user_set:
             del User2Reads_binary[key]
-    print(len(User2Reads_binary))
+    print('num. users:', len(User2Reads_binary))
 
     print("\nload to pandas dataframe...")
     df = pd.DataFrame.from_dict(User2Reads_binary, orient='index')
@@ -379,6 +379,47 @@ def outputPNAStrainingDatasets(file_name, book_isbns):
     print("save to pickle...")
     new_df.to_pickle("training_data/{}".format(file_name))
 
+def outputCatogoricalTrainingDatasets(file_name, book_isbns):
+    """
+    output the training data for categorical attributes: each book is a variable: 'unread', 'dislike', 'neutral', 'like'
+    """
+    print("==== load read book users ====")
+    query_statement = 'SELECT `ISBN`, `User-ID`, `Book-Rating` FROM `bx-book-ratings` WHERE `ISBN` in (%s)'
+    in_p=', '.join(list(map(lambda x: '%s', book_isbns)))
+    query_statement = query_statement % in_p
+    print(query_statement)
+    x = conn.cursor()
+    x.execute(query_statement, book_isbns)
+    results = x.fetchall()
+    user_set = set()
+    for result in results:
+        isbn = result[0]
+        user_id = result[1]
+        rating_score = result[2]
+        user_set.add(user_id)
+        if user_id in User2Reads_binary:
+            if rating_score <= 3:
+                User2Reads_binary[user_id][isbn] = 1
+            elif rating_score >= 8:
+                User2Reads_binary[user_id][isbn] = 2
+            else:
+                User2Reads_binary[user_id][isbn] = 3
+
+    key_set =  set(User2Reads_binary.keys())
+    for key in key_set:
+        if key not in user_set:
+            del User2Reads_binary[key]
+    print('num. users:', len(User2Reads_binary))
+
+    print("\nload to pandas dataframe...")
+    df = pd.DataFrame.from_dict(User2Reads_binary, orient='index')
+    df = df.fillna(value=0)
+    print(df.head())
+    df_read = df[(df.T != 0).any()]
+    print('len_df_read', len(df_read))
+
+    print("save to pickle...")
+    df_read.to_pickle("training_data/{}".format(file_name))
 
 def loadAll():
     loadUserAge()
@@ -393,10 +434,17 @@ if __name__=="__main__":
     # outputTrainingDatasets(aggregation_method_avg, 'feature_avg')
 
     # output person reading feature for PNAS'13 paper baseline
+    # loadUserAge()
+    # book_isbns = selectBooks(reader_num_threshold=30)
+    # print("num of books: {}".format(len(book_isbns)))
+    # outputPNAStrainingDatasets("PNAS_training_data.pkl", book_isbns)
+
+    # output person reading feature for categorical varialbes
     loadUserAge()
-    book_isbns = selectBooks(reader_num_threshold=30)
+    threshold = 10
+    book_isbns = selectBooks(reader_num_threshold=threshold)
     print("num of books: {}".format(len(book_isbns)))
-    outputPNAStrainingDatasets("PNAS_training_data.pkl", book_isbns)
+    outputCatogoricalTrainingDatasets("cat_training_data_{}+.pkl".format(threshold), book_isbns)
     
     # save to database
     # books_isbn = selectBooks(reader_num_threshold=10)
